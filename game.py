@@ -18,6 +18,31 @@ class Wrapper(games.Sprite):
     def die(self):
         self.destroy()
 
+class Collider(Wrapper):
+    def update(self):
+        super(Collider, self).update()
+        if self.overlapping_sprites:
+            for sprite in self.overlapping_sprites:
+                sprite.die()
+            self.die()
+
+    def die(self):
+        new_explosion = Explosion(x = self.x, y = self.y)
+        games.screen.add(new_explosion)
+        self.destroy()
+
+class Explosion(games.Animation):
+    sound = games.load_sound("explosion.wav")
+    images = [f"explosion{i}.bmp" for i in range(1, 10)]
+
+    def __init__(self, x, y):
+        super(Explosion, self).__init__(
+            images=Explosion.images, x=x, y=y,
+            repeat_interval=4, n_repeats=1,
+            is_collideable=False
+        )
+        Explosion.sound.play()
+
 class Asteroid(Wrapper):
     SMALL = 1
     MEDIUM = 2
@@ -26,7 +51,7 @@ class Asteroid(Wrapper):
               MEDIUM: games.load_image("asteroid_med.bmp"),
               LARGE: games.load_image("asteroid_big.bmp")}
     SPEED = 2
-
+    SPAWN = 2
     def __init__(self, x, y, size):
         super(Asteroid, self).__init__(
             image=Asteroid.images[size],
@@ -35,9 +60,16 @@ class Asteroid(Wrapper):
             dy= random.choice([-1, 1]) * Asteroid.SPEED*random.random()/size
         )
         self.size = size
-        
 
-class Missile(Wrapper):
+    def die(self):
+        if self.size != Asteroid.SMALL:
+            for i in range(Asteroid.SPAWN):
+                new_asteroid = Asteroid(x=self.x, y=self.y, size = self.size-1)
+                games.screen.add(new_asteroid)
+        super(Asteroid, self).die()
+
+
+class Missile(Collider):
     image = games.load_image("missile.bmp")
     sound = games.load_sound("missile.wav")
     BUFFER = 40
@@ -63,7 +95,7 @@ class Missile(Wrapper):
             self.destroy()
         super(Missile, self).update()
 
-class Ship(Wrapper):
+class Ship(Collider):
     VELOCITY = .03
     ROTATE_SPEED = 3
     MISSILE_DELAY = 25
@@ -102,10 +134,7 @@ def main():
     explosion_files = ["explosion"+str(n)+".bmp" for n in range(1, 10)]
     games.screen.background = nebula_image
     ship = Ship(x=games.screen.width/2, y=games.screen.height/2)
-    explosion = games.Animation(images=explosion_files, y = games.screen.height/3,
-                                x = games.screen.width/3,
-                                n_repeats=0, repeat_interval=5)
-    games.screen.add(explosion)
+
     games.screen.add(ship)
     for i in range(8):
         x = random.randrange(games.screen.width)
