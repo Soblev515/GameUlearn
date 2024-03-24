@@ -4,7 +4,21 @@ import random
 from superwires import games
 games.init(screen_width=640, screen_height=480, fps=50)
 
-class Asteroid(games.Sprite):
+class Wrapper(games.Sprite):
+    def update(self):
+        if self.top > games.screen.height:
+            self.bottom = 0
+        if self.bottom < 0:
+            self.top = games.screen.height
+        if self.left > games.screen.width:
+            self.right = 0
+        if self.right < 0:
+            self.left = games.screen.width
+    
+    def die(self):
+        self.destroy()
+
+class Asteroid(Wrapper):
     SMALL = 1
     MEDIUM = 2
     LARGE = 3
@@ -21,18 +35,9 @@ class Asteroid(games.Sprite):
             dy= random.choice([-1, 1]) * Asteroid.SPEED*random.random()/size
         )
         self.size = size
+        
 
-    def update(self):
-        if self.top > games.screen.height:
-            self.bottom = 0
-        if self.bottom < 0:
-            self.top = games.screen.height
-        if self.left > games.screen.width:
-            self.right = 0
-        if self.right < 0:
-            self.left = games.screen.width
-
-class Missile(games.Sprite):
+class Missile(Wrapper):
     image = games.load_image("missile.bmp")
     sound = games.load_sound("missile.wav")
     BUFFER = 40
@@ -56,24 +61,29 @@ class Missile(games.Sprite):
         self.lifetime -= 1
         if self.lifetime <= 0:
             self.destroy()
-        if self.top > games.screen.height:
-            self.bottom = 0
-        if self.bottom < 0:
-            self.top = games.screen.height
-        if self.left > games.screen.width:
-            self.right = 0
-        if self.right < 0:
-            self.left = games.screen.width
+        super(Missile, self).update()
 
-class Ship(games.Sprite):
+class Ship(Wrapper):
     VELOCITY = .03
     ROTATE_SPEED = 3
+    MISSILE_DELAY = 25
     sound = games.load_sound("thrust.wav")
+    image = games.load_image("ship.bmp")
+
+    def __init__(self, x, y):
+        super(Ship, self).__init__(
+            image=Ship.image, x=x, y=y
+        )
+        self.missile_delay = 0
+
     def update(self):
         angle = self.angle * math.pi / 180
-        if games.keyboard.is_pressed(games.K_SPACE):
+        if self.missile_delay > 0:
+            self.missile_delay -= 1
+        if games.keyboard.is_pressed(games.K_SPACE) and self.missile_delay <= 0:
             new_missile = Missile(self.x, self.y, self.angle)
             games.screen.add(new_missile)
+            self.missile_delay = Ship.MISSILE_DELAY
         if games.keyboard.is_pressed(games.K_w):
             Ship.sound.play()
             self.dx += Ship.VELOCITY * math.sin(angle)
@@ -82,14 +92,7 @@ class Ship(games.Sprite):
             self.angle -= Ship.ROTATE_SPEED
         if games.keyboard.is_pressed(games.K_d):
             self.angle += Ship.ROTATE_SPEED
-        if self.top > games.screen.height:
-            self.bottom = 0
-        if self.bottom < 0:
-            self.top = games.screen.height
-        if self.left > games.screen.width:
-            self.right = 0
-        if self.right < 0:
-            self.left = games.screen.width
+        super(Ship, self).update()
 
 
 def main():
@@ -98,8 +101,7 @@ def main():
     nebula_image = games.load_image("nebula.jpg", transparent=False)
     explosion_files = ["explosion"+str(n)+".bmp" for n in range(1, 10)]
     games.screen.background = nebula_image
-    ship_image = games.load_image("ship.bmp")
-    ship = Ship(image=ship_image, x=games.screen.width/2, y=games.screen.height/2)
+    ship = Ship(x=games.screen.width/2, y=games.screen.height/2)
     explosion = games.Animation(images=explosion_files, y = games.screen.height/3,
                                 x = games.screen.width/3,
                                 n_repeats=0, repeat_interval=5)
